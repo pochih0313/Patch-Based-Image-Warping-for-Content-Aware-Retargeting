@@ -35,55 +35,33 @@ using namespace std;
 //    return hsv_to_rgb(cv::Scalar(fmod(base, 1.2), 0.95, 0.80));
 //}
 
-cv::Mat create_significanceMap(cv::Mat &segments, cv::Mat saliency)
+cv::Mat create_significanceMap(cv::Mat saliency)
 {
     cv::Mat result;
     result = cv::Mat::zeros(segments.rows, segments.cols, CV_8UC3);
 
-    // find the number of segments
-    double min, max;
-    cv::minMaxLoc(segments, &min, &max);
-    int nb_segs = (int) max + 1;
-
-    // find group size
-    int group_size[nb_segs];
-    uint *seg;
-
-    for (int i = 0; i < nb_segs; i++) {
-        group_size[i] = 0;
-    }
-
-    for (int i = 0; i < segments.rows; i++) {
-        seg = segments.ptr<uint>(i);
-
-        for (int j = 0; j < segments.cols; j++) {
-            group_size[seg[j]] += 1;
-        }
-    }
-    
-    
-    // find group color
-    vector<cv::Scalar> group_color(nb_segs);
+    // find patch significance color
     uchar *s;
+    uint *seg;
     for (int i = 0; i < saliency.rows; i++) {
         s = saliency.ptr<uchar>(i);
         seg = segments.ptr<uint>(i);
         for (int j = 0; j < saliency.cols; j++) {
             for (int index = 0; index < 3; index++) {
                 int group = seg[j];
-                group_color[group].val[index] += s[j * 3 + index] / (double)group_size[group];
+                patch[group].significance_color.val[index] += s[j * 3 + index] / (double)patch[group].size;
             }
         }
     }
 
+    // return the result;
     uchar *r;
-
     for (int i = 0; i < segments.rows; i++) {
         seg = segments.ptr<uint>(i);
         r = result.ptr<uchar>(i);
 
         for (int j = 0; j < segments.cols; j++) {
-            cv::Scalar color = group_color[seg[j]];
+            cv::Scalar color = patch[seg[j]].significance_color;
             r[j * 3] = (uchar) color[0];
             r[j * 3 + 1] = (uchar) color[1];
             r[j * 3 + 2] = (uchar) color[2];
@@ -93,7 +71,7 @@ cv::Mat create_significanceMap(cv::Mat &segments, cv::Mat saliency)
     return result;
 }
 
-cv::Mat segmentation(cv::Mat source, cv::Mat &segments)
+cv::Mat segmentation(cv::Mat source)
 {
     cv::Mat result;
     
@@ -107,25 +85,30 @@ cv::Mat segmentation(cv::Mat source, cv::Mat &segments)
     int nb_segs = (int) max + 1;
     std::cout << nb_segs << " segments" << std::endl;
     
-    // find group size
-    int group_size[nb_segs];
-    uint *seg;
-    
-    for (int i = 0; i < nb_segs; i++) {
-        group_size[i] = 0;
+    // initialize patch data
+    patch_num = nb_segs;
+    patch = (Patch *) malloc(sizeof(Patch) * patch_num);
+
+    for (int i = 0; i < patch_num; i++) {
+        patch[i].id = i;
+        patch[i].size = 0;
+        for (int index = 0; index < 3; index++) {
+            patch[i].segment_color.val[index] = 0;
+            patch[i].significance_color.val[index] = 0;
+        }
     }
     
+    // find patch size
+    uint *seg;
     for (int i = 0; i < segments.rows; i++) {
         seg = segments.ptr<uint>(i);
 
         for (int j = 0; j < segments.cols; j++) {
-            group_size[seg[j]] += 1;
-//            cout << seg[j] << ":" << group_size[seg[j]] << endl;
+            patch[seg[j]].size += 1;
         }
     }
     
-    // find group color
-    vector<cv::Scalar> group_color(nb_segs);
+    // find patch segment color
     uchar *s;
     for (int i = 0; i < source.rows; i++) {
         s = source.ptr<uchar>(i);
@@ -133,20 +116,19 @@ cv::Mat segmentation(cv::Mat source, cv::Mat &segments)
         for (int j = 0; j < source.cols; j++) {
             for (int index = 0; index < 3; index++) {
                 int group = seg[j];
-                group_color[group].val[index] += s[j * 3 + index] / (double)group_size[group];
+                patch[group].segment_color.val[index] += s[j * 3 + index] / (double)patch[group].size;
             }
         }
     }
 
+    // return the result
     uchar *r;
-
     for (int i = 0; i < segments.rows; i++) {
         seg = segments.ptr<uint>(i);
         r = result.ptr<uchar>(i);
 
         for (int j = 0; j < segments.cols; j++) {
-//            cv::Scalar color = color_mapping(seg[j]);
-            cv::Scalar color = group_color[seg[j]];
+            cv::Scalar color = patch[seg[j]].segment_color;
             r[j * 3] = (uchar) color[0];
             r[j * 3 + 1] = (uchar) color[1];
             r[j * 3 + 2] = (uchar) color[2];
@@ -157,15 +139,20 @@ cv::Mat segmentation(cv::Mat source, cv::Mat &segments)
 }
 
 int main(int argc, const char * argv[]) {
-    cv::Mat source_image, seg_image, segments, sal_image, significance_map;
+    cv::Mat source_image, seg_image, sal_image, significance_map;
     
-    source_image = cv::imread("res/image.jpg");
+    source_image = cv::imread("res/origin.jpg");
     if (!source_image.data) {
         std::cerr << "Failed to load input image" << std::endl;
         return -1;
     }
-    
-    seg_image = segmentation(source_image, segments);
+
+    seg_image = cv::imread("res/segmentation.jpg");
+    if (!seg_image.data) {
+        std::cerr << "Failed to load input image" << std::endl;
+        return -1;
+    }
+    seg_image = segmentation(seg_image);
     
     sal_image = cv::imread("res/saliency.jpg");
     if (!sal_image.data) {
@@ -173,7 +160,13 @@ int main(int argc, const char * argv[]) {
         return -1;
     }
     
-    significance_map = create_significanceMap(segments, sal_image);
+    significance_map = create_significanceMap(sal_image);
+
+    
+
+
+
+
     
     cv::namedWindow("Source");
     cv::Mat show_source = source_image.clone();
@@ -182,10 +175,15 @@ int main(int argc, const char * argv[]) {
     cv::namedWindow("Segmentation");
     cv::Mat show_segmentation = seg_image.clone();
     imshow("Segmentation", show_segmentation);
+
+    cv::namedWindow("Saliency");
+    cv::Mat show_saliency = sal_image.clone();
+    imshow("Saliency", show_saliency);
     
-    cv::namedWindow("Significance Map");
+    cv::namedWindow("Significance Map", cv::WINDOW_FREERATIO);
     cv::Mat show_significance = significance_map.clone();
     imshow("Significance Map", show_significance);
+    // cv::imwrite("result/significance.png", significance_map);
     
     while(1) {
         int key = cv::waitKey(0);
