@@ -7,8 +7,6 @@
 
 #include "main.h"
 
-using namespace std;
-
 //cv::Scalar hsv_to_rgb(cv::Scalar c) {
 //    cv::Mat in(1, 1, CV_32FC3);
 //    cv::Mat out(1, 1, CV_32FC3);
@@ -34,6 +32,11 @@ using namespace std;
 //
 //    return hsv_to_rgb(cv::Scalar(fmod(base, 1.2), 0.95, 0.80));
 //}
+
+void build_graph()
+{
+    
+}
 
 cv::Mat create_significanceMap(cv::Mat saliency)
 {
@@ -162,7 +165,7 @@ int main(int argc, const char * argv[]) {
     
     significance_map = create_significanceMap(sal_image);
 
-    
+    build_graph();
 
 
 
