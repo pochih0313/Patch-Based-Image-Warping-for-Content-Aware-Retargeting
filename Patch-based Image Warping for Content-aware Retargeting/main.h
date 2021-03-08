@@ -15,13 +15,11 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc/segmentation.hpp>
 
-#include "warping.h"
-
 using namespace std;
 
 // structures
 typedef cv::Vec<float, 2> Vec2f;
-typedef pair<float, float> Edge;
+typedef pair<unsigned int, unsigned int> Edge;
 
 struct Patch {
     unsigned int id;
@@ -38,14 +36,15 @@ struct Graph {
 struct Mesh {
     vector<Vec2f> vertices;
     vector<Edge> edges;
-    vector<Vec2f> quads;
-}
+    vector<Vec2f> faces;
+};
 
 // data
 cv::Mat segments;
 unsigned int patch_num;
-Patch *patch;
-Graph graph;
+struct Patch *patch;
+struct Graph graph;
+struct Mesh mesh;
 
 float grid_size = 50.0f;
 

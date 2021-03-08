@@ -32,48 +32,6 @@
 //
 //    return hsv_to_rgb(cv::Scalar(fmod(base, 1.2), 0.95, 0.80));
 //}
-
-void build_graph()
-{
-    
-}
-
-cv::Mat create_significanceMap(cv::Mat saliency)
-{
-    cv::Mat result;
-    result = cv::Mat::zeros(segments.rows, segments.cols, CV_8UC3);
-
-    // find patch significance color
-    uchar *s;
-    uint *seg;
-    for (int i = 0; i < saliency.rows; i++) {
-        s = saliency.ptr<uchar>(i);
-        seg = segments.ptr<uint>(i);
-        for (int j = 0; j < saliency.cols; j++) {
-            for (int index = 0; index < 3; index++) {
-                int group = seg[j];
-                patch[group].significance_color.val[index] += s[j * 3 + index] / (double)patch[group].size;
-            }
-        }
-    }
-
-    // return the result;
-    uchar *r;
-    for (int i = 0; i < segments.rows; i++) {
-        seg = segments.ptr<uint>(i);
-        r = result.ptr<uchar>(i);
-
-        for (int j = 0; j < segments.cols; j++) {
-            cv::Scalar color = patch[seg[j]].significance_color;
-            r[j * 3] = (uchar) color[0];
-            r[j * 3 + 1] = (uchar) color[1];
-            r[j * 3 + 2] = (uchar) color[2];
-        }
-    }
-
-    return result;
-}
-
 cv::Mat segmentation(cv::Mat source)
 {
     cv::Mat result;
@@ -141,6 +99,98 @@ cv::Mat segmentation(cv::Mat source)
     return result;
 }
 
+cv::Mat create_significanceMap(cv::Mat saliency)
+{
+    cv::Mat result;
+    result = cv::Mat::zeros(segments.rows, segments.cols, CV_8UC3);
+
+    // find patch significance color
+    uchar *s;
+    uint *seg;
+    for (int i = 0; i < saliency.rows; i++) {
+        s = saliency.ptr<uchar>(i);
+        seg = segments.ptr<uint>(i);
+        for (int j = 0; j < saliency.cols; j++) {
+            for (int index = 0; index < 3; index++) {
+                int group = seg[j];
+                patch[group].significance_color.val[index] += s[j * 3 + index] / (double)patch[group].size;
+            }
+        }
+    }
+
+    // return the result;
+    uchar *r;
+    for (int i = 0; i < segments.rows; i++) {
+        seg = segments.ptr<uint>(i);
+        r = result.ptr<uchar>(i);
+
+        for (int j = 0; j < segments.cols; j++) {
+            cv::Scalar color = patch[seg[j]].significance_color;
+            r[j * 3] = (uchar) color[0];
+            r[j * 3 + 1] = (uchar) color[1];
+            r[j * 3 + 2] = (uchar) color[2];
+        }
+    }
+
+    return result;
+}
+
+void build_graph_and_mesh()
+{
+    unsigned int mesh_cols = (segments.cols / grid_size) + 1;
+    unsigned int mesh_rows = (segments.rows / grid_size) + 1;
+    float mesh_width = segments.cols / (float) (mesh_cols - 1);
+    float mesh_height = segments.rows / (float) (mesh_rows - 1);
+    
+    // graph vertices
+    for (unsigned int row = 0; row < mesh_rows; row++) {
+        for (unsigned int col = 0; col < mesh_cols; col++) {
+            graph.vertices.push_back(Vec2f(col * mesh_width, row * mesh_height));
+            // cout << graph.vertices.back() << endl;
+        }
+    }
+
+    // graph edges
+    for (unsigned int row = 0; row < mesh_rows - 1; row++) {
+        for (unsigned int col = 0; col < mesh_cols - 1; col++) {
+            unsigned int index = row * mesh_cols + col;
+            unsigned int indices[4] = {index, index + mesh_cols, index + mesh_cols + 1, index + 1}; // direction: counterclockwise
+            
+            if (col != 0)
+                graph.edges.push_back(Edge(make_pair(indices[0], indices[1])));
+            graph.edges.push_back(Edge(make_pair(indices[1], indices[2])));
+            graph.edges.push_back(Edge(make_pair(indices[3], indices[2])));
+            if (row != 0)
+                graph.edges.push_back(Edge(make_pair(indices[0], indices[3])));
+
+            for (int i = 0; i < 4; i++) {
+                unsigned int vertex_index = indices[i];
+                mesh.vertices.push_back(Vec2f(graph.vertices[vertex_index][0], graph.vertices[vertex_index][1]));
+                mesh.faces.push_back(Vec2f(graph.vertices[vertex_index][0] / (float) segments.cols, 
+                                            graph.vertices[vertex_index][1] / (float) segments.rows));
+            }
+        }
+    }
+
+
+    // for (int i = 0; i < graph.edges.size(); i++) {
+    //     cout << graph.edges[i].first << " " << graph.edges[i].second << endl;
+    // }
+}
+
+void warping(unsigned int target_width, unsigned int target_height)
+{
+    if (target_width <= 0 || target_height <= 0) {
+        cout << "Wrong target image size" << endl;
+        exit(-1);
+    }
+
+    // edge list of each patch
+    vector<unsigned int> edge_list_of_patch[patch_num];
+
+    
+}
+
 int main(int argc, const char * argv[]) {
     cv::Mat source_image, seg_image, sal_image, significance_map;
     
@@ -165,10 +215,11 @@ int main(int argc, const char * argv[]) {
     
     significance_map = create_significanceMap(sal_image);
 
-    build_graph();
-
-
-
+    build_graph_and_mesh();
+    
+    unsigned int target_image_width = 200;
+    unsigned int target_image_height = 200;
+    warping(target_image_width, target_image_height);
 
     
     cv::namedWindow("Source");
