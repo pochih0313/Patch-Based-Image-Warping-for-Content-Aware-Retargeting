@@ -8,6 +8,17 @@
 ## Installation
 https://docs.opencv.org/3.4/d7/d9f/tutorial_linux_install.html
 
+```
+cd opencv-3.4.13
+mkdir build
+cd build
+cmake -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-3.4.13/modules ../
+make -j4 //use 4 CPU
+sudo make install
+sudo ldconfig
+pkg-config opencv --modversion
+```
+
 ## Compile
 ```
 g++ main.cpp -o output `pkg-config --cflags --libs opencv`
