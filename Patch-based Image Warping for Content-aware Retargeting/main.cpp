@@ -155,27 +155,40 @@ void build_graph_and_mesh()
         for (unsigned int col = 0; col < mesh_cols - 1; col++) {
             unsigned int index = row * mesh_cols + col;
             unsigned int indices[4] = {index, index + mesh_cols, index + mesh_cols + 1, index + 1}; // direction: counterclockwise
+            Edge edge;
             
-            if (col != 0)
-                graph.edges.push_back(Edge(make_pair(indices[0], indices[1])));
-            graph.edges.push_back(Edge(make_pair(indices[1], indices[2])));
-            graph.edges.push_back(Edge(make_pair(indices[3], indices[2])));
-            if (row != 0)
-                graph.edges.push_back(Edge(make_pair(indices[0], indices[3])));
+            if (col != 0) {
+                edge.pair_indice = make_pair(indices[0], indices[1]);
+                graph.edges.push_back(edge);
+            }
+            edge.pair_indice = make_pair(indices[1], indices[2]);
+            graph.edges.push_back(edge);
+            edge.pair_indice = make_pair(indices[3], indices[2]);
+            graph.edges.push_back(edge);
+            if (row != 0) {
+                edge.pair_indice = make_pair(indices[0], indices[3]);
+                graph.edges.push_back(edge);
+            }
+            
+//            if (col != 0)
+//                graph.edges.push_back(Edge(make_pair(indices[0], indices[1])));
+//            graph.edges.push_back(Edge(make_pair(indices[1], indices[2])));
+//            graph.edges.push_back(Edge(make_pair(indices[3], indices[2])));
+//            if (row != 0)
+//                graph.edges.push_back(Edge(make_pair(indices[0], indices[3])));
 
             for (int i = 0; i < 4; i++) {
                 unsigned int vertex_index = indices[i];
                 mesh.vertices.push_back(Vec2f(graph.vertices[vertex_index][0], graph.vertices[vertex_index][1]));
-                mesh.faces.push_back(Vec2f(graph.vertices[vertex_index][0] / (float) segments.cols, 
-                                            graph.vertices[vertex_index][1] / (float) segments.rows));
+                mesh.faces.push_back(Vec2f(graph.vertices[vertex_index][0] / (float) segments.cols, graph.vertices[vertex_index][1] / (float) segments.rows));
             }
         }
     }
 
 
-    // for (int i = 0; i < graph.edges.size(); i++) {
-    //     cout << graph.edges[i].first << " " << graph.edges[i].second << endl;
-    // }
+//     for (int i = 0; i < graph.edges.size(); i++) {
+//         cout << graph.edges[i].pair_indice.first << " " << graph.edges[i].pair_indice.second << endl;
+//     }
 }
 
 void warping(unsigned int target_width, unsigned int target_height)
@@ -187,7 +200,28 @@ void warping(unsigned int target_width, unsigned int target_height)
 
     // edge list of each patch
     vector<unsigned int> edge_list_of_patch[patch_num];
-
+    for (int edge_index = 0; edge_index < graph.edges.size(); edge_index++) {
+        unsigned int v1 = graph.edges[edge_index].pair_indice.first;
+        unsigned int v2 = graph.edges[edge_index].pair_indice.second;
+        
+        uint *seg1, *seg2;
+        seg1 = segments.ptr<uint>(graph.vertices[v1][1]);
+        seg2 = segments.ptr<uint>(graph.vertices[v2][1]);
+        int c1 = graph.vertices[v1][0];
+        int c2 = graph.vertices[v2][0];
+        unsigned int patch_index1 = seg1[c1];
+        unsigned int patch_index2 = seg2[c2];
+        
+        if (patch_index1 == patch_index2) {
+            edge_list_of_patch[patch_index1].push_back(edge_index);
+        } else {
+            edge_list_of_patch[patch_index1].push_back(edge_index);
+            edge_list_of_patch[patch_index2].push_back(edge_index);
+        }
+    }
+    
+    // Patch transformation constraint
+    
     
 }
 

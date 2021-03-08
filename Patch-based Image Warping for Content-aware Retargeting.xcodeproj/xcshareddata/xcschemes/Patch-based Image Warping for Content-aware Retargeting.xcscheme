@@ -36,7 +36,7 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
-      customWorkingDirectory = "/Users/chen/Google &#x96f2;&#x7aef;&#x786c;&#x789f;/Lab_training/Resizing/Patch-based Image Warping for Content-aware Retargeting/Patch-based Image Warping for Content-aware Retargeting"
+      customWorkingDirectory = "/Users/chen/Projects/Patch-based Image Warping for Content-aware Retargeting/Patch-based Image Warping for Content-aware Retargeting"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"

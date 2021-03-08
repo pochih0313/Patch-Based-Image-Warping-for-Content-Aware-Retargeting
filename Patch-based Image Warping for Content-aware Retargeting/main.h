@@ -19,7 +19,13 @@ using namespace std;
 
 // structures
 typedef cv::Vec<float, 2> Vec2f;
-typedef pair<unsigned int, unsigned int> Edge;
+
+struct Edge {
+    pair<unsigned int, unsigned int> pair_indice;
+    float weight;
+};
+
+// typedef pair<unsigned int, unsigned int> Edge;
 
 struct Patch {
     unsigned int id;
@@ -35,8 +41,8 @@ struct Graph {
 
 struct Mesh {
     vector<Vec2f> vertices;
-    vector<Edge> edges;
     vector<Vec2f> faces;
+    vector<Edge> edges;
 };
 
 // data
