@@ -4,9 +4,11 @@
 * Ubuntu 20.04
 * OpenCV 3.4.13 https://github.com/opencv/opencv/archive/3.4.13.zip
 * Opencv_contrib 3.4.13 https://github.com/opencv/opencv_contrib/archive/3.4.13.zip
+* Cplex
 
 ## Installation
-https://docs.opencv.org/3.4/d7/d9f/tutorial_linux_install.html
+* OpenCV https://docs.opencv.org/3.4/d7/d9f/tutorial_linux_install.html
+* Cplex https://www.ibm.com/support/knowledgecenter/SSSA5P_20.1.0/COS_KC_home.html
 
 ```
 cd opencv-3.4.13
@@ -21,7 +23,7 @@ pkg-config opencv --modversion
 
 ## Compile
 ```
-g++ main.cpp -o output `pkg-config --cflags --libs opencv`
+g++ main.cpp -o output `pkg-config --cflags --libs opencv` -I/opt/ibm/ILOG/CPLEX_Studio_Community201/cplex/include -I/opt/ibm/ILOG/CPLEX_Studio_Community201/concert/include -DIL_STD -L/opt/ibm/ILOG/CPLEX_Studio_Community201/cplex/lib/x86-64_linux/static_pic -L/opt/ibm/ILOG/CPLEX_Studio_Community201/concert/lib/x86-64_linux/static_pic -lilocplex -lconcert -lcplex
 ```
 
 ## Run

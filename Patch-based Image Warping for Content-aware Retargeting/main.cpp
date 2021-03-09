@@ -137,10 +137,10 @@ cv::Mat create_significanceMap(cv::Mat saliency)
 
 void build_graph_and_mesh()
 {
-    unsigned int mesh_cols = (segments.cols / grid_size) + 1;
-    unsigned int mesh_rows = (segments.rows / grid_size) + 1;
-    float mesh_width = segments.cols / (float) (mesh_cols - 1);
-    float mesh_height = segments.rows / (float) (mesh_rows - 1);
+    unsigned int mesh_cols = (unsigned int)(segments.cols - 1 / grid_size) + 1;
+    unsigned int mesh_rows = (unsigned int)(segments.rows - 1 / grid_size) + 1;
+    float mesh_width = (float) (segments.cols - 1) / (mesh_cols - 1);
+    float mesh_height = (float) (segments.rows - 1) / (mesh_rows - 1);
     
     // graph vertices
     for (unsigned int row = 0; row < mesh_rows; row++) {
@@ -197,20 +197,23 @@ void warping(unsigned int target_width, unsigned int target_height)
         cout << "Wrong target image size" << endl;
         exit(-1);
     }
-
+    
     // edge list of each patch
     vector<unsigned int> edge_list_of_patch[patch_num];
     for (int edge_index = 0; edge_index < graph.edges.size(); edge_index++) {
         unsigned int v1 = graph.edges[edge_index].pair_indice.first;
         unsigned int v2 = graph.edges[edge_index].pair_indice.second;
-        
+
         uint *seg1, *seg2;
-        seg1 = segments.ptr<uint>(graph.vertices[v1][1]);
-        seg2 = segments.ptr<uint>(graph.vertices[v2][1]);
-        int c1 = graph.vertices[v1][0];
-        int c2 = graph.vertices[v2][0];
-        unsigned int patch_index1 = seg1[c1];
-        unsigned int patch_index2 = seg2[c2];
+        int vy1 = (int) graph.vertices[v1][1];
+        int vy2 = (int) graph.vertices[v2][1];
+        int vx1 = (int) graph.vertices[v1][0];
+        int vx2 = (int) graph.vertices[v2][0];
+
+        seg1 = segments.ptr<uint>(vy1);
+        seg2 = segments.ptr<uint>(vy2);
+        int patch_index1 = seg1[vx1];
+        int patch_index2 = seg2[vx2];
         
         if (patch_index1 == patch_index2) {
             edge_list_of_patch[patch_index1].push_back(edge_index);
@@ -219,7 +222,7 @@ void warping(unsigned int target_width, unsigned int target_height)
             edge_list_of_patch[patch_index2].push_back(edge_index);
         }
     }
-    
+    cout << graph.edges.size() <<endl;
     // Patch transformation constraint
     
     
