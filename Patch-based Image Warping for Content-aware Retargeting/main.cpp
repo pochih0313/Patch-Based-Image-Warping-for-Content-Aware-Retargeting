@@ -161,10 +161,12 @@ void build_graph_and_mesh()
                 edge.pair_indice = make_pair(indices[0], indices[1]);
                 graph.edges.push_back(edge);
             }
+
             edge.pair_indice = make_pair(indices[1], indices[2]);
             graph.edges.push_back(edge);
             edge.pair_indice = make_pair(indices[3], indices[2]);
             graph.edges.push_back(edge);
+
             if (row != 0) {
                 edge.pair_indice = make_pair(indices[0], indices[3]);
                 graph.edges.push_back(edge);
@@ -198,7 +200,7 @@ void warping(unsigned int target_width, unsigned int target_height)
         exit(-1);
     }
     
-    // edge list of each patch
+    // Set up edge list of each patch
     vector<unsigned int> edge_list_of_patch[patch_num];
     for (int edge_index = 0; edge_index < graph.edges.size(); edge_index++) {
         unsigned int v1 = graph.edges[edge_index].pair_indice.first;
@@ -222,8 +224,34 @@ void warping(unsigned int target_width, unsigned int target_height)
             edge_list_of_patch[patch_index2].push_back(edge_index);
         }
     }
-    cout << graph.edges.size() <<endl;
+
+    // Set up cplex variable
+    IloEnv env;
+    IloNumVarArray Vp(env);
+    IloExpr D(env);
+
+    for (unsigned int i = 0; i < graph.vertices.size(); i++) {
+        Vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // x
+        Vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // y
+    }
+    
     // Patch transformation constraint
+    for (unsigned int patch_index = 0; patch_index < patch_num; patch_index++) {
+        const vector<unsigned int> edge_list = edge_list_of_patch[patch_index];
+
+        if (!edge_list.size()) {
+            continue;
+        }
+
+        const Edge &center_edge = graph.edges[edge_list[0]]; // select the first edge as center edge
+        double c_x = graph.vertices[center_edge.pair_indice.first][0] - graph.vertices[center_edge.pair_indice.second][0];
+        double c_y = graph.vertices[center_edge.pair_indice.first][1] - graph.vertices[center_edge.pair_indice.second][1];
+
+        
+
+
+
+    }
     
     
 }

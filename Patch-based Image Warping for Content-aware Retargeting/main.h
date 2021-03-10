@@ -15,6 +15,9 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc/segmentation.hpp>
 
+#include <ilcplex/ilocplex.h>
+#include <ilconcert/iloexpression.h>
+
 using namespace std;
 
 // structures
