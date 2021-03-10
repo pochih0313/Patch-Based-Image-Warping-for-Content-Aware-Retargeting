@@ -135,8 +135,20 @@ cv::Mat create_significanceMap(cv::Mat saliency)
     return result;
 }
 
-void build_graph_and_mesh()
+double sigColor_to_salValue(cv::Scalar &sig_color)
 {
+    
+}
+
+void build_for_warping()
+{
+    // Get saliency value of each patch
+    for (int patch_index = 0; patch_index < patch_num; patch_index++) {
+        patch[patch_index].saliency_value = sigColor_to_salValue(patch[patch_index].significance_color);
+    }
+
+
+    // Set up graph and mesh data
     unsigned int mesh_cols = (unsigned int)(segments.cols - 1 / grid_size) + 1;
     unsigned int mesh_rows = (unsigned int)(segments.rows - 1 / grid_size) + 1;
     float mesh_width = (float) (segments.cols - 1) / (mesh_cols - 1);
@@ -179,6 +191,7 @@ void build_graph_and_mesh()
 //            if (row != 0)
 //                graph.edges.push_back(Edge(make_pair(indices[0], indices[3])));
 
+            // mesh
             for (int i = 0; i < 4; i++) {
                 unsigned int vertex_index = indices[i];
                 mesh.vertices.push_back(Vec2f(graph.vertices[vertex_index][0], graph.vertices[vertex_index][1]));
@@ -235,7 +248,7 @@ void warping(unsigned int target_width, unsigned int target_height)
         Vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // y
     }
     
-    // Patch transformation constraint
+    // Patch transformation constraint DTF
     for (unsigned int patch_index = 0; patch_index < patch_num; patch_index++) {
         const vector<unsigned int> edge_list = edge_list_of_patch[patch_index];
 
@@ -243,16 +256,48 @@ void warping(unsigned int target_width, unsigned int target_height)
             continue;
         }
 
+        // Find geometry tranformation T
         const Edge &center_edge = graph.edges[edge_list[0]]; // select the first edge as center edge
+
+        // Find inverse matrix of C
         double c_x = graph.vertices[center_edge.pair_indice.first][0] - graph.vertices[center_edge.pair_indice.second][0];
         double c_y = graph.vertices[center_edge.pair_indice.first][1] - graph.vertices[center_edge.pair_indice.second][1];
 
-        
+        double matrix_a = c_x;
+        double matrix_b = c_y;
+        double matrix_c = c_y;
+        double matrix_d = -c_x;
+
+        double matrix_rank = matrix_a * matrix_d - matrix_b * matrix_c;
+        if (fabs(matrix_rank) <= 1e-9) {
+            matrix_rank = (matrix_rank > 0 ? 1 : -1) * 1e-9;
+        }
+
+        double inverse_matrix_a = matrix_d / matrix_rank;
+        double inverse_matrix_b = -matrix_b / matrix_rank;
+        double inverse_matrix_c = -matrix_c / matrix_rank;
+        double inverse_matrix_d = matrix_a / matrix_rank;
+
+        for (unsigned int i = 0; i < edge_list.size(); i++) {
+            const Edge &edge = graph.edges[edge_list[i]];
+            
+            double e_x = graph.vertices[edge.pair_indice.first][0] - graph.vertices[edge.pair_indice.second][0];
+            double e_y = graph.vertices[edge.pair_indice.first][1] - graph.vertices[edge.pair_indice.second][1];
+
+            double t_s = inverse_matrix_a * e_x + inverse_matrix_b * e_y;
+            double t_r = inverse_matrix_c * e_x + inverse_matrix_d * e_y;
+
+            // DST
+            
+
+
+            // DLT
 
 
 
+
+        }
     }
-    
     
 }
 
@@ -280,7 +325,7 @@ int main(int argc, const char * argv[]) {
     
     significance_map = create_significanceMap(sal_image);
 
-    build_graph_and_mesh();
+    build_for_warping();
     
     unsigned int target_image_width = 200;
     unsigned int target_image_height = 200;
