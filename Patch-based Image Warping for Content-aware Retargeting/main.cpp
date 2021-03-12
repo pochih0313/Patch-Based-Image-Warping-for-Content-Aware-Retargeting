@@ -104,7 +104,7 @@ cv::Mat create_significanceMap(cv::Mat saliency)
     cv::Mat result;
     result = cv::Mat::zeros(segments.rows, segments.cols, CV_8UC3);
 
-    // find patch significance color
+    // find patch significance and saliency color
     uchar *s;
     uint *seg;
     for (int i = 0; i < saliency.rows; i++) {
@@ -114,8 +114,22 @@ cv::Mat create_significanceMap(cv::Mat saliency)
             for (int index = 0; index < 3; index++) {
                 int group = seg[j];
                 patch[group].significance_color.val[index] += s[j * 3 + index] / (double)patch[group].size;
+                patch[group].saliency_value += s[j * 3 + index] / 3.0f / 255.0f / (double)patch[group].size;
             }
         }
+    }
+
+    // Find min and max saliency
+    double min_saliency = 2e9;
+    double max_saliency = -2e9;
+    for (int patch_index = 0; patch_index < patch_num; ++patch_index) {
+        min_saliency = min(min_saliency, patch[patch_index].saliency_value);
+        max_saliency = max(max_saliency, patch[patch_index].saliency_value);
+    }
+
+    // Normalize
+    for (int patch_index = 0; patch_index < patch_num; ++patch_index) {
+        patch[patch_index].saliency_value = (patch[patch_index].saliency_value - min_saliency) / (max_saliency - min_saliency);
     }
 
     // return the result;
@@ -135,17 +149,17 @@ cv::Mat create_significanceMap(cv::Mat saliency)
     return result;
 }
 
-double sigColor_to_salValue(cv::Scalar &sig_color)
-{
+// double sigColor_to_salValue(cv::Scalar &sig_color)
+// {
     
-}
+// }
 
 void build_for_warping()
 {
-    // Get saliency value of each patch
-    for (int patch_index = 0; patch_index < patch_num; patch_index++) {
-        patch[patch_index].saliency_value = sigColor_to_salValue(patch[patch_index].significance_color);
-    }
+    // // Get saliency value of each patch
+    // for (int patch_index = 0; patch_index < patch_num; patch_index++) {
+    //     patch[patch_index].saliency_value = sigColor_to_salValue(patch[patch_index].significance_color);
+    // }
 
 
     // Set up graph and mesh data
@@ -249,6 +263,8 @@ void warping(unsigned int target_width, unsigned int target_height)
     }
     
     // Patch transformation constraint DTF
+    const double alpha = 0.8f;
+
     for (unsigned int patch_index = 0; patch_index < patch_num; patch_index++) {
         const vector<unsigned int> edge_list = edge_list_of_patch[patch_index];
 
@@ -278,6 +294,8 @@ void warping(unsigned int target_width, unsigned int target_height)
         double inverse_matrix_c = -matrix_c / matrix_rank;
         double inverse_matrix_d = matrix_a / matrix_rank;
 
+        // cout << patch[patch_index].saliency_value << endl;
+
         for (unsigned int i = 0; i < edge_list.size(); i++) {
             const Edge &edge = graph.edges[edge_list[i]];
             
@@ -288,11 +306,18 @@ void warping(unsigned int target_width, unsigned int target_height)
             double t_r = inverse_matrix_c * e_x + inverse_matrix_d * e_y;
 
             // DST
-            
+            D += alpha * patch[patch_index].saliency_value *
+                (IloPower((Vp[edge.pair_indice.first * 2] - Vp[edge.pair_indice.second * 2]) -
+                        (t_s * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
+                        t_r * (Vp[center_edge.pair_indice.first * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2) +
+                Ilopower((Vp[edge.pair_indice.first * 2 + 1] - Vp[edge.pair_indice.second * 2 + 1]) -
+                        (-t_r * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
+                        t_s * (Vp[center_edge.pair_indice.first * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2));
 
 
             // DLT
-
+            D += (1 - alpha) * (1 - patch[patch_index].saliency_value) * 
+                (IloPower());
 
 
 
