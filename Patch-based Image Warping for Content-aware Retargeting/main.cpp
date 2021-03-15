@@ -264,6 +264,8 @@ void warping(unsigned int target_width, unsigned int target_height)
     
     // Patch transformation constraint DTF
     const double alpha = 0.8f;
+    const double width_ratio = (double) target_width / segments.cols - 1;
+    const double height_ratio = (double) target_height / segments.rows - 1;
 
     for (unsigned int patch_index = 0; patch_index < patch_num; patch_index++) {
         const vector<unsigned int> edge_list = edge_list_of_patch[patch_index];
@@ -317,11 +319,24 @@ void warping(unsigned int target_width, unsigned int target_height)
 
             // DLT
             D += (1 - alpha) * (1 - patch[patch_index].saliency_value) * 
-                (IloPower());
-
-
-
+                (IloPower(Vp[edge.pair_indice.first * 2] - Vp[edge.pair_indice.second * 2] -
+                          width_ratio * (t_s * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
+                                         t_r * (Vp[center_edge.pair_indice.fist * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2) +
+                 Ilopower(Vp[edge.pair_indice.first * 2 + 1] - Vp[edge.pair_indice.second * 2 + 1] -
+                          height_ratio * (-t_r * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
+                                          t_s * (Vp[center_edge.pair_indice.first * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2));
         }
+    }
+    
+    // Grid orientation constraint DOR
+    for (unsigned int edge_index = 0; edge_index < graph.edges.size(); edge_index++) {
+        unsigned int v1 = graph.edges[edge_index].pair_indice.first;
+        unsigned int v2 = graph.edges[edge_index].pair_indice.second;
+        
+        float delta_x = graph.vertices[v1][0] - graph.vertices[v2][0];
+        float delta_y = graph.vertices[v1][1] - graph.vertices[v2][1];
+        
+        
     }
     
 }

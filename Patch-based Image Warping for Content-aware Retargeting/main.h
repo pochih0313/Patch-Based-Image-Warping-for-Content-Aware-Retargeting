@@ -46,7 +46,6 @@ struct Graph {
 struct Mesh {
     vector<Vec2f> vertices;
     vector<Vec2f> faces;
-    vector<Edge> edges;
 };
 
 // data
