@@ -54,12 +54,16 @@ unsigned int patch_num;
 struct Patch *patch;
 struct Graph graph;
 struct Mesh mesh;
+float mesh_width;
+float mesh_height;
+
+vector<Vec2f> target_vertices;
 
 float grid_size = 50.0f;
 
 // segmentation arguments
-double sigma = 1.0;
-float k = 500;
+double sigma = 1.5;
+float k = 200;
 int min_size = 50;
 
 #endif /* main_h */

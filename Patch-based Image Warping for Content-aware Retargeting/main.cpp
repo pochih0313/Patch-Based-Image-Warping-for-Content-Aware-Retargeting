@@ -165,8 +165,8 @@ void build_for_warping()
     // Set up graph and mesh data
     unsigned int mesh_cols = (unsigned int)(segments.cols - 1 / grid_size) + 1;
     unsigned int mesh_rows = (unsigned int)(segments.rows - 1 / grid_size) + 1;
-    float mesh_width = (float) (segments.cols - 1) / (mesh_cols - 1);
-    float mesh_height = (float) (segments.rows - 1) / (mesh_rows - 1);
+    mesh_width = (float) (segments.cols - 1) / (mesh_cols - 1);
+    mesh_height = (float) (segments.rows - 1) / (mesh_rows - 1);
     
     // graph vertices
     for (unsigned int row = 0; row < mesh_rows; row++) {
@@ -254,18 +254,18 @@ void warping(unsigned int target_width, unsigned int target_height)
 
     // Set up cplex variable
     IloEnv env;
-    IloNumVarArray Vp(env);
-    IloExpr D(env);
+    IloNumVarArray vp(env);
+    IloExpr d(env);
 
     for (unsigned int i = 0; i < graph.vertices.size(); i++) {
-        Vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // x
-        Vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // y
+        vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // x
+        vp.add(IloNumVar(env, -IloInfinity, IloInfinity)); // y
     }
     
     // Patch transformation constraint DTF
     const double alpha = 0.8f;
-    const double width_ratio = (double) target_width / segments.cols - 1;
-    const double height_ratio = (double) target_height / segments.rows - 1;
+    const double width_ratio = (double) target_width / (segments.cols - 1);
+    const double height_ratio = (double) target_height / (segments.rows - 1);
 
     for (unsigned int patch_index = 0; patch_index < patch_num; patch_index++) {
         const vector<unsigned int> edge_list = edge_list_of_patch[patch_index];
@@ -308,23 +308,23 @@ void warping(unsigned int target_width, unsigned int target_height)
             double t_r = inverse_matrix_c * e_x + inverse_matrix_d * e_y;
 
             // DST
-            D += alpha * patch[patch_index].saliency_value *
-                (IloPower((Vp[edge.pair_indice.first * 2] - Vp[edge.pair_indice.second * 2]) -
-                        (t_s * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
-                        t_r * (Vp[center_edge.pair_indice.first * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2) +
-                Ilopower((Vp[edge.pair_indice.first * 2 + 1] - Vp[edge.pair_indice.second * 2 + 1]) -
-                        (-t_r * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
-                        t_s * (Vp[center_edge.pair_indice.first * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2));
+            d += alpha * patch[patch_index].saliency_value *
+                (IloPower((vp[edge.pair_indice.first * 2] - vp[edge.pair_indice.second * 2]) -
+                        (t_s * (vp[center_edge.pair_indice.first * 2] - vp[center_edge.pair_indice.second * 2]) +
+                        t_r * (vp[center_edge.pair_indice.first * 2 + 1] - vp[center_edge.pair_indice.second * 2 + 1])), 2) +
+                IloPower((vp[edge.pair_indice.first * 2 + 1] - vp[edge.pair_indice.second * 2 + 1]) -
+                        (-t_r * (vp[center_edge.pair_indice.first * 2] - vp[center_edge.pair_indice.second * 2]) +
+                        t_s * (vp[center_edge.pair_indice.first * 2 + 1] - vp[center_edge.pair_indice.second * 2 + 1])), 2));
 
 
             // DLT
-            D += (1 - alpha) * (1 - patch[patch_index].saliency_value) * 
-                (IloPower(Vp[edge.pair_indice.first * 2] - Vp[edge.pair_indice.second * 2] -
-                          width_ratio * (t_s * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
-                                         t_r * (Vp[center_edge.pair_indice.fist * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2) +
-                 Ilopower(Vp[edge.pair_indice.first * 2 + 1] - Vp[edge.pair_indice.second * 2 + 1] -
-                          height_ratio * (-t_r * (Vp[center_edge.pair_indice.first * 2] - Vp[center_edge.pair_indice.second * 2]) +
-                                          t_s * (Vp[center_edge.pair_indice.first * 2 + 1] - Vp[center_edge.pair_indice.second * 2 + 1])), 2));
+            d += (1 - alpha) * (1 - patch[patch_index].saliency_value) * 
+                (IloPower(vp[edge.pair_indice.first * 2] - vp[edge.pair_indice.second * 2] -
+                          width_ratio * (t_s * (vp[center_edge.pair_indice.first * 2] - vp[center_edge.pair_indice.second * 2]) +
+                                         t_r * (vp[center_edge.pair_indice.first * 2 + 1] - vp[center_edge.pair_indice.second * 2 + 1])), 2) +
+                 IloPower(vp[edge.pair_indice.first * 2 + 1] - vp[edge.pair_indice.second * 2 + 1] -
+                          height_ratio * (-t_r * (vp[center_edge.pair_indice.first * 2] - vp[center_edge.pair_indice.second * 2]) +
+                                          t_s * (vp[center_edge.pair_indice.first * 2 + 1] - vp[center_edge.pair_indice.second * 2 + 1])), 2));
         }
     }
     
@@ -335,10 +335,84 @@ void warping(unsigned int target_width, unsigned int target_height)
         
         float delta_x = graph.vertices[v1][0] - graph.vertices[v2][0];
         float delta_y = graph.vertices[v1][1] - graph.vertices[v2][1];
-        
-        
+
+        if (abs(delta_x) > abs(delta_y)) {
+            d += IloPower(vp[v1 * 2 + 1] - vp[v2 * 2 + 1], 2);
+        } else {
+            d += IloPower(vp[v1 * 2] - vp[v2 * 2], 2);
+        }
     }
+
+    IloModel model(env);
+    model.add(IloMinimize(env, d));
+
+    // Other constraints
+    IloRangeArray constraint(env);
+
+    unsigned int mesh_cols = (int)((segments.cols - 1) / mesh_width) + 1;
+    unsigned int mesh_rows = (int)((segments.rows - 1) / mesh_height) + 1;
+
+    for (unsigned int r = 0; r < mesh_rows; r++) {
+        unsigned int index = r * mesh_cols;
+        constraint.add(vp[index * 2] == graph.vertices[0][0]);
+        
+        index = r * mesh_cols + mesh_cols - 1;
+        constraint.add(vp[index * 2] == graph.vertices[0][0] + target_width);
+    }
+
+    for (unsigned int c = 1; c < mesh_cols; c++) {
+        unsigned int index = c;
+        constraint.add(vp[index * 2 +1] == graph.vertices[0][1]);
+
+        index = (mesh_rows - 1) * mesh_cols + c;
+        constraint.add(vp[index * 2 + 1] == graph.vertices[0][1] + target_height);
+    }
+
+    for (unsigned int r = 0; r < mesh_rows; r++) {
+        for (unsigned int c = 1; c < mesh_cols; c++) {
+            unsigned int right = r * mesh_cols + c;
+            unsigned int left = r * mesh_cols + c - 1;
+            constraint.add((vp[right * 2] - vp[left * 2]) >= 1e-4);
+        }
+    }
+
+    for (unsigned int r = 1; r < mesh_rows; r++) {
+        for (unsigned int c = 0; c < mesh_cols; c++) {
+            unsigned int bot = r * mesh_cols + c;
+            unsigned int up = (r - 1) * mesh_cols + c;
+            constraint.add((vp[bot * 2 + 1] - vp[up * 2 + 1]) >= 1e-4);
+        }
+    }
+
+    model.add(constraint);
+
+    // Solve
+    // IloCplex cplex(model);
+
+    // cplex.setOut(env.getNullStream());
+    // if (!cplex.solve()) {
+    //     cout << "Failed to optimize" << endl;
+    // }
     
+    // try {
+    //     cplex.solve();
+    // } catch (IloException& e) {
+    //     cout << e.getMessage() << endl;
+    //     e.end();
+    // }
+
+    // IloNumArray result(env);
+    // cplex.getValues(result, vp);
+    
+    // for (unsigned int vertex_index = 0; vertex_index < graph.vertices.size(); vertex_index++) {
+    //     // graph.vertices[vertex_index][0] = result[vertex_index * 2];
+    //     // graph.vertices[vertex_index][1] = result[vertex_index * 2 + 1];
+    //     target_vertices.push_back(Vec2f(result[vertex_index * 2], result[vertex_index * 2 + 1]))
+    // }
+
+    model.end();
+    //cplex.end();
+    env.end();
 }
 
 int main(int argc, const char * argv[]) {
@@ -367,9 +441,26 @@ int main(int argc, const char * argv[]) {
 
     build_for_warping();
     
-    unsigned int target_image_width = 200;
-    unsigned int target_image_height = 200;
+    unsigned int target_image_width = 500;
+    unsigned int target_image_height = 500;
     warping(target_image_width, target_image_height);
+
+    // cv::Point2f *src, *dst;
+    // src = (cv::Point2f*) malloc(sizeof(cv::Point2f) * graph.vertices.size());
+    // dst = (cv::Point2f*) malloc(sizeof(cv::Point2f) * graph.vertices.size());
+    // for (int i = 0; i < graph.vertices.size(); i++) {
+    //     src[i].x = graph.vertices[i][0];
+    //     src[i].y = graph.vertices[i][1];
+
+    //     dst[i].x = target_vertices[i][0];
+    //     src[i].y = target_vertices[i][1];
+    // }
+
+
+    // cv::Mat perspectiveTransform = cv::getPerspectiveTransform(src, dst);
+    
+    // cv::Mat result;
+    // cv::warpPerspective(source_image, result, perspectiveTransform, cv::Size(target_image_width, target_image_height));
 
     
     cv::namedWindow("Source");
@@ -388,6 +479,9 @@ int main(int argc, const char * argv[]) {
     cv::Mat show_significance = significance_map.clone();
     imshow("Significance Map", show_significance);
     // cv::imwrite("result/significance.png", significance_map);
+
+
+
     
     while(1) {
         int key = cv::waitKey(0);
