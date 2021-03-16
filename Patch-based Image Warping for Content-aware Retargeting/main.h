@@ -11,6 +11,7 @@
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include <string>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc/segmentation.hpp>
@@ -56,7 +57,10 @@ struct Graph graph;
 struct Mesh mesh;
 float mesh_width;
 float mesh_height;
+unsigned int mesh_cols;
+unsigned int mesh_rows;
 
+vector<Vec2f> target_mesh_vertices;
 vector<Vec2f> target_vertices;
 
 float grid_size = 50.0f;

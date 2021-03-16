@@ -163,8 +163,8 @@ void build_for_warping()
 
 
     // Set up graph and mesh data
-    unsigned int mesh_cols = (unsigned int)(segments.cols - 1 / grid_size) + 1;
-    unsigned int mesh_rows = (unsigned int)(segments.rows - 1 / grid_size) + 1;
+    mesh_cols = (unsigned int)((segments.cols - 1) / grid_size) + 1;
+    mesh_rows = (unsigned int)((segments.rows - 1) / grid_size) + 1;
     mesh_width = (float) (segments.cols - 1) / (mesh_cols - 1);
     mesh_height = (float) (segments.rows - 1) / (mesh_rows - 1);
     
@@ -349,9 +349,6 @@ void warping(unsigned int target_width, unsigned int target_height)
     // Other constraints
     IloRangeArray constraint(env);
 
-    unsigned int mesh_cols = (int)((segments.cols - 1) / mesh_width) + 1;
-    unsigned int mesh_rows = (int)((segments.rows - 1) / mesh_height) + 1;
-
     for (unsigned int r = 0; r < mesh_rows; r++) {
         unsigned int index = r * mesh_cols;
         constraint.add(vp[index * 2] == graph.vertices[0][0]);
@@ -360,9 +357,9 @@ void warping(unsigned int target_width, unsigned int target_height)
         constraint.add(vp[index * 2] == graph.vertices[0][0] + target_width);
     }
 
-    for (unsigned int c = 1; c < mesh_cols; c++) {
+    for (unsigned int c = 0; c < mesh_cols; c++) {
         unsigned int index = c;
-        constraint.add(vp[index * 2 +1] == graph.vertices[0][1]);
+        constraint.add(vp[index * 2 + 1] == graph.vertices[0][1]);
 
         index = (mesh_rows - 1) * mesh_cols + c;
         constraint.add(vp[index * 2 + 1] == graph.vertices[0][1] + target_height);
@@ -387,12 +384,12 @@ void warping(unsigned int target_width, unsigned int target_height)
     model.add(constraint);
 
     // Solve
-    // IloCplex cplex(model);
+    IloCplex cplex(model);
 
-    // cplex.setOut(env.getNullStream());
-    // if (!cplex.solve()) {
-    //     cout << "Failed to optimize" << endl;
-    // }
+    cplex.setOut(env.getNullStream());
+    if (!cplex.solve()) {
+        cout << "Failed to optimize" << endl;
+    }
     
     // try {
     //     cplex.solve();
@@ -401,17 +398,32 @@ void warping(unsigned int target_width, unsigned int target_height)
     //     e.end();
     // }
 
-    // IloNumArray result(env);
-    // cplex.getValues(result, vp);
-    
+    IloNumArray result(env);
+    cplex.getValues(result, vp);
+
+    for (unsigned int row = 0; row < mesh_rows - 1; row++) {
+        for (unsigned int col = 0; col < mesh_cols - 1; col++) {
+            unsigned int index = row * mesh_cols + col;
+            unsigned int indices[4] = {index, index + mesh_cols, index + mesh_cols + 1, index + 1}; // direction: counterclockwise
+            
+            for (int i = 0; i < 4; i++) {
+                Vec2f r;
+                r[0] = result[indices[i] * 2];
+                r[1] = result[indices[i] * 2 + 1];
+                target_mesh_vertices.push_back(r);
+            }
+            
+        }
+    }
+
     // for (unsigned int vertex_index = 0; vertex_index < graph.vertices.size(); vertex_index++) {
     //     // graph.vertices[vertex_index][0] = result[vertex_index * 2];
     //     // graph.vertices[vertex_index][1] = result[vertex_index * 2 + 1];
-    //     target_vertices.push_back(Vec2f(result[vertex_index * 2], result[vertex_index * 2 + 1]))
+    //     target_vertices.push_back(Vec2f(result[vertex_index * 2], result[vertex_index * 2 + 1]));
     // }
 
     model.end();
-    //cplex.end();
+    cplex.end();
     env.end();
 }
 
@@ -423,32 +435,79 @@ int main(int argc, const char * argv[]) {
         std::cerr << "Failed to load input image" << std::endl;
         return -1;
     }
+    // cv::resize(source_image, source_image, cv::Size2d(300,200));
 
     seg_image = cv::imread("res/segmentation.jpg");
     if (!seg_image.data) {
         std::cerr << "Failed to load input image" << std::endl;
         return -1;
     }
+    // cv::resize(seg_image, seg_image, cv::Size2d(300,200));
     seg_image = segmentation(seg_image);
+    //cv::resize(seg_image, seg_image, cv::Size2d(50,30));
     
     sal_image = cv::imread("res/saliency.jpg");
     if (!sal_image.data) {
         std::cerr << "Failed to load input image" << std::endl;
         return -1;
     }
+    // cv::resize(sal_image, sal_image, cv::Size2d(300,200));
     
     significance_map = create_significanceMap(sal_image);
 
     build_for_warping();
     
-    unsigned int target_image_width = 500;
-    unsigned int target_image_height = 500;
+    unsigned int target_image_width = 800;
+    unsigned int target_image_height = 800;
     warping(target_image_width, target_image_height);
 
+    unsigned int quad_num = (mesh_cols - 1) * (mesh_rows - 1);
+    cout << "quad number: " << quad_num << endl;
+    
+    cv::Mat result_image(cv::Size2d(target_image_width, target_image_height), CV_8UC4, cv::Scalar(0,0,0,0));
+    cv::Mat source(source_image.size(), CV_8UC4, cv::Scalar(0,0,0,0));
+
+    unsigned int n = 0;
+    for (int i = 0; i < quad_num; i++) {
+        cv::Point2f src[4], dst[4];
+
+        cv::Mat result(target_image_width, target_image_height, CV_8UC4, cv::Scalar(0,0,0,0));
+        cv::Mat mask1(source_image.size(), CV_8UC1, cv::Scalar::all(0));
+        cv::Mat black1(source_image.size(), source_image.type(), cv::Scalar(0, 0, 0));
+        vector<vector<cv::Point>> contour;
+        contour.push_back(vector<cv::Point>());
+
+        for (int j = 0; j < 4; j++) {
+            src[j].x = mesh.vertices[n][0];
+            src[j].y = mesh.vertices[n][1];
+            dst[j].x = target_mesh_vertices[n][0];
+            dst[j].y = target_mesh_vertices[n][1];
+            n++;
+
+            contour[0].push_back(cv::Point(src[j].x, src[j].y));
+        }
+        
+        cv::drawContours(mask1, contour, 0, cv::Scalar(255, 255, 255), cv::FILLED);
+        source_image.copyTo(black1, mask1);
+        cv::cvtColor(black1, black1, cv::COLOR_BGR2BGRA);
+
+        cv::Mat perspectiveTransform = cv::getPerspectiveTransform(src, dst);
+        cv::warpPerspective(black1, result, perspectiveTransform, cv::Size2d(target_image_width, target_image_height), 1, cv::BORDER_CONSTANT, cv::Scalar(0,0,0,0));
+        cv::add(result_image, result, result_image);
+        cv::add(source, black1, source);
+
+        // string name = to_string(i);
+        // cv::namedWindow(name.c_str());
+        // cv::Mat show_result = black.clone();
+        // imshow(name.c_str(), show_result);
+    }
+
     // cv::Point2f *src, *dst;
-    // src = (cv::Point2f*) malloc(sizeof(cv::Point2f) * graph.vertices.size());
-    // dst = (cv::Point2f*) malloc(sizeof(cv::Point2f) * graph.vertices.size());
+    // src = (cv::Point2f*) malloc (sizeof(cv::Point2f) * graph.vertices.size());
+    // dst = (cv::Point2f*) malloc (sizeof(cv::Point2f) * graph.vertices.size());
+
     // for (int i = 0; i < graph.vertices.size(); i++) {
+        
     //     src[i].x = graph.vertices[i][0];
     //     src[i].y = graph.vertices[i][1];
 
@@ -459,8 +518,7 @@ int main(int argc, const char * argv[]) {
 
     // cv::Mat perspectiveTransform = cv::getPerspectiveTransform(src, dst);
     
-    // cv::Mat result;
-    // cv::warpPerspective(source_image, result, perspectiveTransform, cv::Size(target_image_width, target_image_height));
+    // cv::warpPerspective(source_image, result_image, perspectiveTransform, cv::Size(target_image_width, target_image_height));
 
     
     cv::namedWindow("Source");
@@ -470,19 +528,30 @@ int main(int argc, const char * argv[]) {
     cv::namedWindow("Segmentation");
     cv::Mat show_segmentation = seg_image.clone();
     imshow("Segmentation", show_segmentation);
+    cv::imwrite("result/segmentation.png", seg_image);
 
     cv::namedWindow("Saliency");
     cv::Mat show_saliency = sal_image.clone();
     imshow("Saliency", show_saliency);
     
-    cv::namedWindow("Significance Map", cv::WINDOW_FREERATIO);
+    cv::namedWindow("Significance Map");
     cv::Mat show_significance = significance_map.clone();
     imshow("Significance Map", show_significance);
-    // cv::imwrite("result/significance.png", significance_map);
+    cv::imwrite("result/significance.png", significance_map);
 
+    cv::namedWindow("GridSource");
+    cv::Mat show_gridsource = source.clone();
+    imshow("GridSource", show_gridsource);
+    cv::imwrite("result/source.png", source);
 
+    cv::namedWindow("Result");
+    cv::Mat show_result = result_image.clone();
+    imshow("Result", show_result);
+    cv::imwrite("result/result.png", result_image);
 
-    
+    cout << mesh_width << endl;
+    cout << mesh_height << endl;
+
     while(1) {
         int key = cv::waitKey(0);
         
