@@ -36,7 +36,7 @@ struct Patch {
     unsigned int size;
     cv::Scalar segment_color;
     cv::Scalar significance_color;
-    double saliency_value;
+    double saliency_value = 0;
 };
 
 struct Graph {

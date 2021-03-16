@@ -114,9 +114,14 @@ cv::Mat create_significanceMap(cv::Mat saliency)
             for (int index = 0; index < 3; index++) {
                 int group = seg[j];
                 patch[group].significance_color.val[index] += s[j * 3 + index] / (double)patch[group].size;
-                patch[group].saliency_value += s[j * 3 + index] / 3.0f / 255.0f / (double)patch[group].size;
             }
         }
+    }
+
+    for (int i = 0; i < patch_num; i++) {
+        patch[i].saliency_value += patch[i].significance_color.val[0] * 65536;
+        patch[i].saliency_value += patch[i].significance_color.val[1] * 256;
+        patch[i].saliency_value += patch[i].significance_color.val[2];
     }
 
     // Find min and max saliency
@@ -126,10 +131,12 @@ cv::Mat create_significanceMap(cv::Mat saliency)
         min_saliency = min(min_saliency, patch[patch_index].saliency_value);
         max_saliency = max(max_saliency, patch[patch_index].saliency_value);
     }
+    
 
     // Normalize
-    for (int patch_index = 0; patch_index < patch_num; ++patch_index) {
+    for (int patch_index = 0; patch_index < patch_num; patch_index++) {
         patch[patch_index].saliency_value = (patch[patch_index].saliency_value - min_saliency) / (max_saliency - min_saliency);
+        // cout << patch[patch_index].saliency_value << endl;
     }
 
     // return the result;
@@ -267,8 +274,13 @@ void warping(unsigned int target_width, unsigned int target_height)
     const double width_ratio = (double) target_width / (segments.cols - 1);
     const double height_ratio = (double) target_height / (segments.rows - 1);
 
+    const double DST_WEIGHT = 5.5;
+    const double DLT_WEIGHT = 0.8;
+    const double ORIENTATION_WEIGHT = 12.0;
+
     for (unsigned int patch_index = 0; patch_index < patch_num; patch_index++) {
         const vector<unsigned int> edge_list = edge_list_of_patch[patch_index];
+        const double PATCH_SIZE_WEIGHT = sqrt(1.0 / (double)edge_list.size());
 
         if (!edge_list.size()) {
             continue;
@@ -308,7 +320,7 @@ void warping(unsigned int target_width, unsigned int target_height)
             double t_r = inverse_matrix_c * e_x + inverse_matrix_d * e_y;
 
             // DST
-            d += alpha * patch[patch_index].saliency_value *
+            d += PATCH_SIZE_WEIGHT * DST_WEIGHT * alpha * patch[patch_index].saliency_value *
                 (IloPower((vp[edge.pair_indice.first * 2] - vp[edge.pair_indice.second * 2]) -
                         (t_s * (vp[center_edge.pair_indice.first * 2] - vp[center_edge.pair_indice.second * 2]) +
                         t_r * (vp[center_edge.pair_indice.first * 2 + 1] - vp[center_edge.pair_indice.second * 2 + 1])), 2) +
@@ -318,7 +330,7 @@ void warping(unsigned int target_width, unsigned int target_height)
 
 
             // DLT
-            d += (1 - alpha) * (1 - patch[patch_index].saliency_value) * 
+            d += PATCH_SIZE_WEIGHT * DLT_WEIGHT * (1 - alpha) * (1 - patch[patch_index].saliency_value) * 
                 (IloPower(vp[edge.pair_indice.first * 2] - vp[edge.pair_indice.second * 2] -
                           width_ratio * (t_s * (vp[center_edge.pair_indice.first * 2] - vp[center_edge.pair_indice.second * 2]) +
                                          t_r * (vp[center_edge.pair_indice.first * 2 + 1] - vp[center_edge.pair_indice.second * 2 + 1])), 2) +
@@ -337,9 +349,9 @@ void warping(unsigned int target_width, unsigned int target_height)
         float delta_y = graph.vertices[v1][1] - graph.vertices[v2][1];
 
         if (abs(delta_x) > abs(delta_y)) {
-            d += IloPower(vp[v1 * 2 + 1] - vp[v2 * 2 + 1], 2);
+            d += ORIENTATION_WEIGHT * IloPower(vp[v1 * 2 + 1] - vp[v2 * 2 + 1], 2);
         } else {
-            d += IloPower(vp[v1 * 2] - vp[v2 * 2], 2);
+            d += ORIENTATION_WEIGHT * IloPower(vp[v1 * 2] - vp[v2 * 2], 2);
         }
     }
 
@@ -430,7 +442,7 @@ void warping(unsigned int target_width, unsigned int target_height)
 int main(int argc, const char * argv[]) {
     cv::Mat source_image, seg_image, sal_image, significance_map;
     
-    source_image = cv::imread("res/origin.jpg");
+    source_image = cv::imread("res/butterfly.jpg");
     if (!source_image.data) {
         std::cerr << "Failed to load input image" << std::endl;
         return -1;
@@ -457,8 +469,8 @@ int main(int argc, const char * argv[]) {
 
     build_for_warping();
     
-    unsigned int target_image_width = 800;
-    unsigned int target_image_height = 800;
+    unsigned int target_image_width = source_image.size().width + 200;
+    unsigned int target_image_height = source_image.size().height;
     warping(target_image_width, target_image_height);
 
     unsigned int quad_num = (mesh_cols - 1) * (mesh_rows - 1);
@@ -498,7 +510,7 @@ int main(int argc, const char * argv[]) {
 
         // string name = to_string(i);
         // cv::namedWindow(name.c_str());
-        // cv::Mat show_result = black.clone();
+        // cv::Mat show_result = result_image.clone();
         // imshow(name.c_str(), show_result);
     }
 
