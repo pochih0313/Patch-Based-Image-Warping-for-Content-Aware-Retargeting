@@ -36,7 +36,7 @@ struct Patch {
     unsigned int size;
     cv::Scalar segment_color;
     cv::Scalar significance_color;
-    double saliency_value = 0;
+    double saliency_value;
 };
 
 struct Graph {
@@ -63,7 +63,7 @@ unsigned int mesh_rows;
 vector<Vec2f> target_mesh_vertices;
 vector<Vec2f> target_vertices;
 
-float grid_size = 50.0f;
+float grid_size = 10.0f;
 
 // segmentation arguments
 double sigma = 1.5;
